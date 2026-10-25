@@ -1,0 +1,5 @@
+# Google Cloud OAuth client (Web application) for this deployment.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Comma-separated Google accounts allowed to connect. Empty refuses everyone.
+ALLOWED_EMAILS=

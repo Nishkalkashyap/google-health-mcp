@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "google-health-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // global_fetch_strictly_public protects the Client ID Metadata Document fetches from SSRF.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Wrangler creates the namespace on the first deploy.
+  "kv_namespaces": [{ "binding": "OAUTH_KV" }],
+  "secrets": {
+    "required": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ALLOWED_EMAILS"],
+  },
+  "observability": { "enabled": true },
+  "dev": { "port": 8788 },
+}
