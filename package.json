@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "deploy:local": "wrangler deploy -c wrangler.local.jsonc",
     "types": "wrangler types",
     "format": "oxfmt --write .",
     "lint": "oxlint",
