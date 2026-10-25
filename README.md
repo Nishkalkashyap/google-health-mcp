@@ -56,17 +56,24 @@ subdomain is your account's workers.dev subdomain (Workers & Pages in the Cloudf
 
 In the [Google Cloud console](https://console.cloud.google.com):
 
-1. Create a project, or pick one, and enable the **Google Health API** in APIs & Services.
-2. In **Google Auth Platform**, choose **Get started**, with **External** as the audience.
-3. Under **Data Access**, add the read-only Google Health scopes (`.../auth/googlehealth.*.readonly`)
+1. Create a project, or pick one.
+2. **Enable the Google Health API**: APIs & Services → Library → search for **Google Health API** →
+   **Enable**. Without it, every tool call fails even though sign-in succeeds.
+3. In **Google Auth Platform**, choose **Get started**, with **External** as the audience.
+4. Under **Data Access**, add the read-only Google Health scopes (`.../auth/googlehealth.*.readonly`)
    and `openid` and `email`.
-4. Under **Audience**, add your Google account as a test user, then choose **Publish app**. While the
-   app is in testing, Google expires refresh tokens after 7 days and you would sign in again every
-   week. A published but unverified app works for you and your test users, after a one-time
-   "Google hasn't verified this app" warning.
-5. Under **Clients**, create a **Web application** client with the authorized redirect URI
+5. **Add every account that will connect as a test user**: Audience → Test users → **Add users**.
+   This includes your own account, even if you own the project. Until the app is published, Google
+   blocks everyone else with "Access blocked: … has not completed the Google verification process".
+6. Under **Clients**, create a **Web application** client with the authorized redirect URI
    `https://google-health-mcp.<your-subdomain>.workers.dev/callback`. Add
    `http://localhost:8788/callback` too for local development.
+7. Optional but recommended: publish the app. While it is in testing, Google expires refresh tokens
+   after 7 days and you sign in again every week. Publishing first needs the **Branding** page
+   filled in: app name, support email, home page, privacy policy link, authorized domain and
+   developer contact; leave the logo empty to avoid brand review. Then choose Audience →
+   **Publish app**. A published but unverified app keeps working for its test users, after a
+   one-time "Google hasn't verified this app" warning.
 
 ### 2. Fill in the secrets
 
@@ -109,6 +116,17 @@ refreshes.
 Add `https://<your-worker>/mcp` as a remote MCP server in any client that supports MCP OAuth, such
 as Claude (Settings → Connectors → Add custom connector), ChatGPT, Cursor or VS Code. The client
 opens the consent page and Google sign-in the first time it connects.
+
+## Troubleshooting
+
+| Symptom                                                                           | Fix                                                                                 |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Google says "Access blocked: … has not completed the Google verification process" | Add the account as a test user (Audience → Test users)                              |
+| Google says `redirect_uri_mismatch`                                               | Add `https://<your-worker>/callback` to the OAuth client's authorized redirect URIs |
+| Sign-in ends with `access_denied` and "is not allowed to use this server"         | Add the account to `ALLOWED_EMAILS`                                                 |
+| Signed in, but every tool returns an error                                        | Enable the Google Health API in the project; the tool result shows Google's message |
+| A tool says the scope is missing                                                  | Reconnect and tick every permission on Google's consent screen                      |
+| The client has to reconnect every week                                            | Publish the app (step 7 of the Google setup)                                        |
 
 ## Google's rules for health data
 
