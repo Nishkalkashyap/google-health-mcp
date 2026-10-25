@@ -92,6 +92,15 @@ so `pnpm run deploy` is enough; change one with `pnpm exec wrangler secret put <
 a specific account, set `CLOUDFLARE_ACCOUNT_ID`. On a custom domain, add its `/callback` URL to the
 Google client as well.
 
+To keep your own settings, such as a custom domain, out of a public fork, copy `wrangler.jsonc` to
+the git-ignored `wrangler.local.jsonc`, add them there, and deploy with
+`pnpm exec wrangler deploy -c wrangler.local.jsonc`:
+
+```jsonc
+"routes": [{ "pattern": "mcp.example.com", "custom_domain": true }],
+"workers_dev": false,
+```
+
 Removing an account from `ALLOWED_EMAILS` ends its access within the hour, when its client next
 refreshes.
 

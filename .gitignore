@@ -4,3 +4,6 @@ node_modules/
 .dev.vars.*
 !.dev.vars.example
 .env
+
+# Personal deployment config (custom domain, resource IDs)
+wrangler.local.jsonc
