@@ -1,20 +1,26 @@
 import {
+  OAuthError,
   OAuthProvider,
   getOAuthApi,
   type OAuthProviderOptions,
 } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
-import { AuthHandler } from "./auth";
+import { AuthHandler, isAllowedEmail } from "./auth";
 import { GoogleOAuth, googleProps } from "./google-oauth";
 import { createServer } from "./tools";
 
 const day = 24 * 60 * 60;
 
 // A fresh MCP server per request, reading Google Health with the token's own Google access.
-const mcpHandler = createMcpHandler(() => {
-  const props = googleProps.parse(getMcpAuthContext()?.props);
-  return createServer(props.accessToken);
-});
+const mcpHandler = createMcpHandler(
+  () => {
+    const props = googleProps.parse(getMcpAuthContext()?.props);
+    return createServer(props.accessToken);
+  },
+  // Every request carries a bearer token rather than a cookie, so a page on another origin cannot
+  // act for the user; accept browser-hosted clients from any origin.
+  { allowedOriginHostnames: "*" },
+);
 
 /**
  * The provider binds tokens to the canonical `/mcp` URL, which is only known from the request,
@@ -39,6 +45,10 @@ function createProvider(origin: string): OAuthProvider<Env> {
     refreshTokenIdleTTL: 30 * day,
     tokenExchangeCallback: async ({ grantType, props, env }) => {
       const current = googleProps.parse(props);
+      // Removing an account from ALLOWED_EMAILS ends its grants at their next refresh.
+      if (grantType === "refresh_token" && !isAllowedEmail(env, current.email)) {
+        throw new OAuthError("invalid_grant", { description: "This account is no longer allowed" });
+      }
       // Each MCP refresh also refreshes Google, so the MCP token expires with Google's.
       const google =
         grantType === "refresh_token"

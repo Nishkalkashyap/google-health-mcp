@@ -7,6 +7,14 @@ import {
 import { GoogleOAuth } from "./google-oauth";
 import { consentPage, errorPage } from "./pages";
 
+/** `ALLOWED_EMAILS` is comma-separated and case-insensitive; an empty list refuses everyone. */
+export function isAllowedEmail(env: Env, email: string): boolean {
+  for (const allowed of env.ALLOWED_EMAILS.split(",")) {
+    if (allowed.trim().toLowerCase() === email) return true;
+  }
+  return false;
+}
+
 /** What `beginUpstream()` keeps for the Google callback; never sent to Google. */
 interface UpstreamData {
   codeVerifier: string;
@@ -95,7 +103,7 @@ export class AuthHandler {
       codeVerifier: resumed.data.codeVerifier,
       redirectUri: AuthHandler._callbackUrl(request),
     });
-    if (!google.emailVerified || !this._allowedEmails().has(google.props.email)) {
+    if (!google.emailVerified || !isAllowedEmail(this._env, google.props.email)) {
       // Leave no Google access behind for an account this deployment refuses.
       await this._google.revoke(google.props.refreshToken);
       const description = `${google.props.email} is not allowed to use this server`;
@@ -113,16 +121,6 @@ export class AuthHandler {
       props: google.props,
     });
     return AuthHandler._redirect(redirectTo, resumed.headers);
-  }
-
-  /** `ALLOWED_EMAILS` is comma-separated; an empty list refuses everyone. */
-  private _allowedEmails(): Set<string> {
-    const emails = new Set<string>();
-    for (const email of this._env.ALLOWED_EMAILS.split(",")) {
-      const normalized = email.trim().toLowerCase();
-      if (normalized) emails.add(normalized);
-    }
-    return emails;
   }
 
   private static _callbackUrl(request: Request): string {

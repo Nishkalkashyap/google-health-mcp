@@ -49,20 +49,10 @@ and the [Agents SDK](https://developers.cloudflare.com/agents/) MCP handler.
 ## Setup
 
 You need Node.js 24+, [pnpm](https://pnpm.io), a Cloudflare account and a Google Cloud project.
+The Worker will be served at `https://google-health-mcp.<your-subdomain>.workers.dev`, where the
+subdomain is your account's workers.dev subdomain (Workers & Pages in the Cloudflare dashboard).
 
-### 1. Deploy the Worker
-
-```sh
-pnpm install
-pnpm exec wrangler login
-pnpm run deploy
-```
-
-The first deploy creates the `OAUTH_KV` namespace and prints the Worker URL, such as
-`https://google-health-mcp.<your-subdomain>.workers.dev`. To deploy to a specific account, set
-`CLOUDFLARE_ACCOUNT_ID`.
-
-### 2. Create the Google OAuth client
+### 1. Create the Google OAuth client
 
 In the [Google Cloud console](https://console.cloud.google.com):
 
@@ -75,18 +65,35 @@ In the [Google Cloud console](https://console.cloud.google.com):
    week. A published but unverified app works for you and your test users, after a one-time
    "Google hasn't verified this app" warning.
 5. Under **Clients**, create a **Web application** client with the authorized redirect URI
-   `https://<your-worker>/callback`. Add `http://localhost:8788/callback` too for local development.
+   `https://google-health-mcp.<your-subdomain>.workers.dev/callback`. Add
+   `http://localhost:8788/callback` too for local development.
 
-### 3. Set the secrets
+### 2. Fill in the secrets
 
 ```sh
-pnpm exec wrangler secret put GOOGLE_CLIENT_ID
-pnpm exec wrangler secret put GOOGLE_CLIENT_SECRET
-pnpm exec wrangler secret put ALLOWED_EMAILS   # e.g. you@example.com,partner@example.com
+pnpm install
+cp .dev.vars.example .dev.vars
 ```
 
-`ALLOWED_EMAILS` is a comma-separated list of Google accounts that may connect. An empty list
-refuses everyone.
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from the client, and `ALLOWED_EMAILS` to a
+comma-separated list of the Google accounts that may connect, such as
+`you@example.com,partner@example.com`. An empty list refuses everyone. The file is git-ignored and
+also serves `pnpm dev`.
+
+### 3. Deploy
+
+```sh
+pnpm exec wrangler login
+pnpm exec wrangler deploy --secrets-file .dev.vars
+```
+
+The first deploy creates the `OAUTH_KV` namespace and uploads the secrets. Later deploys keep them,
+so `pnpm run deploy` is enough; change one with `pnpm exec wrangler secret put <NAME>`. To deploy to
+a specific account, set `CLOUDFLARE_ACCOUNT_ID`. On a custom domain, add its `/callback` URL to the
+Google client as well.
+
+Removing an account from `ALLOWED_EMAILS` ends its access within the hour, when its client next
+refreshes.
 
 ### 4. Connect a client
 
@@ -106,7 +113,6 @@ disclosure, and must follow the Google Health API Developer and User Data Policy
 ## Development
 
 ```sh
-cp .dev.vars.example .dev.vars   # fill in a Google client with the localhost redirect URI
 pnpm dev                          # http://localhost:8788/mcp
 pnpm test                         # Vitest in the Workers runtime, with Google faked
 pnpm check                        # formatting, lint and types

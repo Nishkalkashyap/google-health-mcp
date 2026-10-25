@@ -99,8 +99,11 @@ beforeEach(() => {
   vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => google.fetch(input, init));
 });
 
+const allowedEmails = env.ALLOWED_EMAILS;
+
 afterEach(() => {
   vi.restoreAllMocks();
+  env.ALLOWED_EMAILS = allowedEmails;
 });
 
 async function registerClient(): Promise<string> {
@@ -197,9 +200,12 @@ async function signIn(clientId: string): Promise<Tokens> {
   return response.json();
 }
 
-async function mcpClient(accessToken: string): Promise<Client> {
+async function mcpClient(
+  accessToken: string,
+  headers: Record<string, string> = {},
+): Promise<Client> {
   const transport = new StreamableHTTPClientTransport(new URL(`${origin}/mcp`), {
-    requestInit: { headers: { Authorization: `Bearer ${accessToken}` } },
+    requestInit: { headers: { ...headers, Authorization: `Bearer ${accessToken}` } },
     fetch: (input, init) => call(new Request(input, init)),
   });
   const client = new Client({ name: "test", version: "1.0.0" });
@@ -277,6 +283,22 @@ describe("sign-in", () => {
     const body: { error: string } = await refreshed.json();
     expect(body.error).toBe("invalid_grant");
   });
+
+  it("stops refreshing once the account leaves ALLOWED_EMAILS", async () => {
+    const clientId = await registerClient();
+    const first = await signIn(clientId);
+    env.ALLOWED_EMAILS = "someone-else@example.com";
+    const refreshed = await token({
+      grant_type: "refresh_token",
+      refresh_token: first.refresh_token,
+      client_id: clientId,
+    });
+    expect(refreshed.status).toBe(400);
+    const body: { error: string } = await refreshed.json();
+    expect(body.error).toBe("invalid_grant");
+    // Only the code exchange reached Google; the refused refresh never did.
+    expect(google.issued).toBe(1);
+  });
 });
 
 describe("tools", () => {
@@ -292,6 +314,15 @@ describe("tools", () => {
       "list_devices",
     ]);
     for (const tool of tools) expect(tool.annotations?.readOnlyHint).toBe(true);
+  });
+
+  it("serves browser-hosted clients on other origins", async () => {
+    const tokens = await signIn(await registerClient());
+    const client = await mcpClient(tokens.access_token, {
+      Origin: "https://web-client.example.net",
+    });
+    const { tools } = await client.listTools();
+    expect(tools.length).toBeGreaterThan(0);
   });
 
   it("reads reconciled points with a civil time filter", async () => {
